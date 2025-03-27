@@ -21,8 +21,8 @@ func main() {
 	r.GET("/authors", handlers.GetAuthors)
 
 	// Category Routes
-	r.POST("/categories", handlers.CreateAuthor)
-	r.GET("/categories", handlers.GetAuthors)
+	r.POST("/categories", handlers.CreateCategory)
+	r.GET("/categories", handlers.GetCategories)
 
 	r.Run(":8080")
 }

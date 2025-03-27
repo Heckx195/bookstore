@@ -30,3 +30,8 @@ func CreateCategory(c *gin.Context) {
 func GetCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, categories)
 }
+
+// Getter categories
+func getCategories() []models.Category {
+	return categories
+}

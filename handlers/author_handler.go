@@ -8,9 +8,9 @@ import (
 )
 
 var authors = []models.Author{
-	{ID: 1, Name: "Arthur"},
+	{ID: 1, Name: "Athur"},
 	{ID: 2, Name: "Toni"},
-	{ID: 3, Name: "Arthur"},
+	{ID: 3, Name: "Peter"},
 	{ID: 4, Name: "Max"},
 }
 
