@@ -3,19 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"restapi/config"
 	"restapi/models"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
-
-var books = []models.Book{
-	{ID: 0, Title: "Book One", AuthorID: 1, CategoryID: 1, Price: 2000.00},
-	{ID: 1, Title: "Book Two", AuthorID: 2, CategoryID: 2, Price: 1900.00},
-	{ID: 2, Title: "Book Three", AuthorID: 1, CategoryID: 3, Price: 2998.99},
-	{ID: 3, Title: "Book Four", AuthorID: 3, CategoryID: 1, Price: 1200.00},
-	{ID: 4, Title: "Book Five", AuthorID: 2, CategoryID: 2, Price: 2400.00},
-}
 
 // POST: /books
 func CreateBook(c *gin.Context) {
@@ -31,13 +24,24 @@ func CreateBook(c *gin.Context) {
 		return
 	}
 
-	newBook.ID = len(books) //  + 1
-	books = append(books, newBook)
+	if err := config.DB.Create(&newBook).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create book"})
+		return
+	}
+
 	c.JSON(http.StatusCreated, newBook)
 }
 
 // GET: /books
 func GetBooks(c *gin.Context) {
+	// Get all books.
+	var books []models.Book
+	if err := config.DB.Find(&books).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch books"})
+		return
+	}
+
+	// Filter & Pagination logic.
 	category := c.Query("category")
 	pageParam := c.Query("page")
 	limitParam := c.Query("limit")
@@ -64,7 +68,12 @@ func GetBooks(c *gin.Context) {
 	// Get category name by id
 	var catId int = -1
 	if checkCategory {
-		categories := getCategories()
+		categories, err := GetAllCategories()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+			return
+		}
+
 		for _, value := range categories {
 			if value.Name == category {
 				catId = value.ID
@@ -73,7 +82,7 @@ func GetBooks(c *gin.Context) {
 		}
 	}
 
-	// Filter
+	// Filter books by category.
 	var selectedBooks []models.Book
 	for _, book := range books {
 		fmt.Println("Book:", book)
@@ -84,7 +93,7 @@ func GetBooks(c *gin.Context) {
 		}
 	}
 
-	// Paginate the selected books
+	// Paginate the selected books.
 	startIndex := (page - 1) * limit
 	endIndex := startIndex + limit
 
@@ -110,14 +119,13 @@ func GetBooksById(c *gin.Context) {
 		return
 	}
 
-	for _, book := range books {
-		if book.ID == id {
-			c.JSON(http.StatusOK, book)
-			return
-		}
+	var book models.Book
+	if err := config.DB.First(&book, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+	c.JSON(http.StatusOK, book)
 }
 
 // PUT: /books/:id
@@ -135,16 +143,12 @@ func UpdateBook(c *gin.Context) {
 		return
 	}
 
-	for i, book := range books {
-		if book.ID == id {
-			books[i] = updatedBook
-			books[i].ID = id
-			c.JSON(http.StatusOK, books[i])
-			return
-		}
+	if err := config.DB.Model(&models.Book{}).Where("id = ?", id).Updates(updatedBook).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+	c.JSON(http.StatusOK, updatedBook)
 }
 
 // DELETE: /books/:id
@@ -156,16 +160,12 @@ func DeleteBook(c *gin.Context) {
 		return
 	}
 
-	for i, book := range books {
-		if book.ID == id {
-			// Copy all books from start till i and from i+1 till end.
-			books = append(books[:i], books[i+1:]...)
-			c.JSON(http.StatusOK, gin.H{"message": "Book deleted"})
-			return
-		}
+	if err := config.DB.Delete(&models.Book{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete book"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+	c.JSON(http.StatusOK, gin.H{"message": "Book deleted"})
 }
 
 // Private helper functions.
@@ -180,4 +180,12 @@ func ValidateInput(b models.Book) (bool, string) {
 	}
 
 	return true, "valide"
+}
+
+func GetAllCategories() ([]models.Category, error) {
+	var categories []models.Category
+	if err := config.DB.Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
 }

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"restapi/config"
 	"restapi/handlers"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	config.DBInit()
+
 	r := gin.Default()
 
 	// Book Routes
